@@ -22,8 +22,15 @@ public interface TitleBarPainter {
 			}
 
 			@Override
-			public boolean supported() {
-				return false;
+			public String problem(Shell window) {
+				// Say what Eclipse runs on, which is what decides who draws the title bar.
+				String session = System.getenv("XDG_SESSION_TYPE");
+				String backend = System.getenv("GDK_BACKEND");
+				return "Eclipse cannot color the title bar on " + System.getProperty("os.name", "this system")
+						+ " yet" + (session == null && backend == null ? ""
+								: " (session: " + (session == null ? "unknown" : session) + ", GDK_BACKEND: "
+										+ (backend == null ? "not set" : backend) + ")")
+						+ ": the window manager draws it.";
 			}
 
 			@Override
@@ -32,10 +39,11 @@ public interface TitleBarPainter {
 		};
 	}
 
-	/** Whether this system can color a title bar at all (a version of it may still refuse). */
-	default boolean supported() {
-		return true;
-	}
+	/**
+	 * What keeps the title bars from being colored on this system, in a sentence for the user; null when
+	 * nothing does. Asks the system, with a window that is open, instead of guessing from its version.
+	 */
+	String problem(Shell window);
 
 	/**
 	 * Gives the title bar of the window this color, and a text color that reads on it.

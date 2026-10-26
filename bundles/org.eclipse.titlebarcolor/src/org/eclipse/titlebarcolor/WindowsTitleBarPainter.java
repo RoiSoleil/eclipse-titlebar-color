@@ -62,6 +62,24 @@ final class WindowsTitleBarPainter implements TitleBarPainter {
 		}
 	}
 
+	@Override
+	public String problem(Shell window) {
+		Pointer handle = window(window);
+		if (handle == null) {
+			return "Eclipse did not give the handle of its window (this version of SWT is not the one of Windows).";
+		}
+		try {
+			// The default color is no change, but a Windows that does not know the attribute refuses it.
+			if (set(handle, DWMWA_CAPTION_COLOR, DWMWA_COLOR_DEFAULT)) {
+				return null;
+			}
+			return "This version of Windows (" + System.getProperty("os.name") + " " + System.getProperty("os.version")
+					+ ") refuses the color of the title bar: it takes Windows 11, build 22000 or later.";
+		} catch (LinkageError | RuntimeException e) {
+			return "Eclipse cannot call Windows: the JNA bundle (com.sun.jna) or dwmapi.dll is not available (" + e + ").";
+		}
+	}
+
 	/** COLORREF is 0x00BBGGRR. */
 	static int colorRef(RGB color) {
 		return color.blue << 16 | color.green << 8 | color.red;

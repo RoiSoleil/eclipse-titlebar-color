@@ -94,6 +94,19 @@ final class MacTitleBarPainter implements TitleBarPainter {
 		}
 	}
 
+	@Override
+	public String problem(Shell window) {
+		try {
+			if (window(window) == null) {
+				return "Eclipse did not give the NSWindow of its window (the SWT of this Eclipse is not the one of macOS).";
+			}
+			return null;
+		} catch (LinkageError | RuntimeException e) {
+			return "Eclipse cannot call Cocoa: the JNA bundle (com.sun.jna) or the Objective-C runtime is not available ("
+					+ e + ").";
+		}
+	}
+
 	private Pointer cls(String name) {
 		return objc().objc_getClass(name);
 	}

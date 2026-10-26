@@ -33,7 +33,9 @@ The system draws the title bar, so each system needs its own way to color it:
 | Linux | Planned |
 | macOS | Supported (untested by eye): the title bar of the `NSWindow` is made transparent and its background color shows through |
 
-On a system that is not supported yet the plug-in does nothing, and the preference page says so.
+Where the title bar cannot be colored the plug-in does nothing, and the preference page says why in a
+warning at its top: an old version of Windows, a missing JNA bundle, a system that is not supported yet
+(with the session type and `GDK_BACKEND` of Linux).
 A system is added by implementing `TitleBarPainter` (`bundles/org.eclipse.titlebarcolor/src`).
 
 # Build

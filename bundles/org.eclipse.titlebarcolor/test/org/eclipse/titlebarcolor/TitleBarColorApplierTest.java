@@ -28,6 +28,11 @@ class TitleBarColorApplierTest {
 		public void reset(Shell shell) {
 			calls.add("reset");
 		}
+
+		@Override
+		public String problem(Shell window) {
+			return null;
+		}
 	};
 	private Shell shell;
 	private TitleBarColorApplier installed;

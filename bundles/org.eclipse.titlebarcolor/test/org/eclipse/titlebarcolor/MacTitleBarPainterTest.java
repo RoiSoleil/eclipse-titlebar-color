@@ -1,6 +1,7 @@
 package org.eclipse.titlebarcolor;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.swt.graphics.RGB;
@@ -25,6 +26,16 @@ class MacTitleBarPainterTest {
 			assertTrue(painter.paint(shell, new RGB(255, 255, 255)));
 			painter.reset(shell);
 			assertFalse(painter.isTitlebarTransparent(shell));
+		} finally {
+			shell.dispose();
+		}
+	}
+
+	@Test
+	void seesNoProblem() {
+		Shell shell = new Shell(Display.getDefault());
+		try {
+			assertNull(new MacTitleBarPainter().problem(shell));
 		} finally {
 			shell.dispose();
 		}

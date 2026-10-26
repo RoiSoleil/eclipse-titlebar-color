@@ -41,10 +41,10 @@ public class TitleBarColorPreferencePage extends PreferencePage implements IWork
 		selector.setColorValue(current != null ? current : SUGGESTION);
 		selector.setEnabled(current != null);
 		enabled.addListener(SWT.Selection, e -> selector.setEnabled(enabled.getSelection()));
-		if (!TitleBarPainter.forThisSystem().supported()) {
-			Label unsupported = new Label(page, SWT.WRAP);
-			unsupported.setText("This system does not let Eclipse color the title bar yet: only Windows 11 and macOS do.");
-			unsupported.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false, 2, 1));
+		// The page tells why nothing will happen, instead of letting the user pick a color for nothing.
+		String problem = TitleBarPainter.forThisSystem().problem(parent.getShell());
+		if (problem != null) {
+			setMessage(problem, WARNING);
 		}
 		return page;
 	}

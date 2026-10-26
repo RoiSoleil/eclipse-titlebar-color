@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import org.eclipse.jface.dialogs.IMessageProvider;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Button;
@@ -76,5 +77,12 @@ class TitleBarColorPreferencePageTest {
 		other.performDefaults();
 		assertTrue(other.performOk());
 		assertNull(TitleBarColors.get());
+	}
+
+	@Test
+	void tellsWhyNothingWillHappenWhereTheSystemCannotDoIt() {
+		String problem = TitleBarPainter.forThisSystem().problem(shell);
+		assertEquals(problem, page.getMessage());
+		assertEquals(problem == null ? IMessageProvider.NONE : IMessageProvider.WARNING, page.getMessageType());
 	}
 }

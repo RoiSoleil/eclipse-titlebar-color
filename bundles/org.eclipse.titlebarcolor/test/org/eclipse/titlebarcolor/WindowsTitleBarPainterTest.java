@@ -34,6 +34,19 @@ class WindowsTitleBarPainterTest {
 	}
 
 	@Test
+	void saysWhetherThisWindowsAcceptsTheColors() {
+		WindowsTitleBarPainter painter = new WindowsTitleBarPainter();
+		Shell shell = new Shell(Display.getDefault());
+		try {
+			boolean accepted = painter.paint(shell, new RGB(1, 2, 3));
+			String problem = painter.problem(shell);
+			assertEquals(accepted, problem == null, String.valueOf(problem));
+		} finally {
+			shell.dispose();
+		}
+	}
+
+	@Test
 	void refusesAWindowThatIsGone() {
 		Shell shell = new Shell(Display.getDefault());
 		shell.dispose();
