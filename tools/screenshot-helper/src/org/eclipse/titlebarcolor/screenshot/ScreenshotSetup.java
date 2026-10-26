@@ -14,6 +14,8 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.swt.widgets.Tree;
+import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.jface.preference.PreferenceDialog;
 import org.eclipse.ui.IStartup;
 import org.eclipse.ui.IViewReference;
@@ -73,6 +75,13 @@ public class ScreenshotSetup implements IStartup {
 		dialog.open();
 		Rectangle bounds = window.getBounds();
 		dialog.getShell().setBounds(bounds.x + 120, bounds.y + 90, 900, 600);
+		// The page of the plug-in, under General > Appearance: the tree shows them above it.
+		Tree tree = dialog.getTreeViewer().getTree();
+		for (TreeItem item : tree.getItems()) {
+			if (item.getText().equals("General")) {
+				tree.setTopItem(item);
+			}
+		}
 		display.timerExec(5000, () -> ready(dialog.getShell(), asked + ".ready"));
 	}
 
