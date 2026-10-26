@@ -106,7 +106,7 @@ jobs:
          uses: actions/upload-artifact@v4
          with:
             name: screenshot-${{ matrix.system }}
-            path: screenshots/${{ matrix.system }}.png
+            path: screenshots/${{ matrix.system }}*.png
             if-no-files-found: warn
    commit:
       needs: screenshot

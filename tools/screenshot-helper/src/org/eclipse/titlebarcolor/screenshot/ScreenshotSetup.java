@@ -14,18 +14,21 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.jface.preference.PreferenceDialog;
 import org.eclipse.ui.IStartup;
 import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.ui.PlatformUI;
+import org.eclipse.ui.dialogs.PreferencesUtil;
 import org.eclipse.ui.ide.IDE;
 
 /**
  * Sets the workbench up for a screenshot, for tools/screenshot.sh only: a small project with a file open in an
  * editor instead of the pages Eclipse opens at its first start, a window that fits the screen, and then a file that
- * says the window is ready and where it is, in pixels of the screen.
+ * says the window is ready and where it is, in pixels of the screen. Then, when the script asks for it, the same
+ * for the preference page of the plug-in.
  */
 public class ScreenshotSetup implements IStartup {
 
@@ -42,18 +45,41 @@ public class ScreenshotSetup implements IStartup {
 		int settle = Integer.parseInt(System.getenv().getOrDefault("SCREENSHOT_SETTLE", "30")) * 1000;
 		display.asyncExec(() -> {
 			// The file is written even if setting the workbench up fails, so that the script does not wait for nothing.
-			display.timerExec(settle, () -> ready(workbench, display, ready));
+			display.timerExec(settle, () -> ready(workbench.getWorkbenchWindows()[0].getShell(), ready));
+			String preferences = System.getenv("SCREENSHOT_PREFERENCES");
+			if (preferences != null) {
+				display.timerExec(settle, () -> openPreferencesWhenAsked(workbench, preferences));
+			}
 			// Eclipse opens some pages late at its first start (Sponsor...): they are closed again before the screenshot.
 			display.timerExec(settle * 2 / 3, () -> setUp(workbench));
 			setUp(workbench);
 		});
 	}
 
+	/**
+	 * Opens the preference page of the plug-in once the file exists, which the script creates after the screenshot of
+	 * the workbench, and says where the dialog is in the file with ".ready" after its name.
+	 */
+	private static void openPreferencesWhenAsked(IWorkbench workbench, String asked) {
+		Display display = workbench.getDisplay();
+		if (!Files.exists(Path.of(asked))) {
+			display.timerExec(1000, () -> openPreferencesWhenAsked(workbench, asked));
+			return;
+		}
+		Shell window = workbench.getWorkbenchWindows()[0].getShell();
+		PreferenceDialog dialog = PreferencesUtil.createPreferenceDialogOn(window, "org.eclipse.titlebarcolor.preferences",
+				null, null);
+		dialog.setBlockOnOpen(false);
+		dialog.open();
+		Rectangle bounds = window.getBounds();
+		dialog.getShell().setBounds(bounds.x + 120, bounds.y + 90, 900, 600);
+		display.timerExec(5000, () -> ready(dialog.getShell(), asked + ".ready"));
+	}
+
 	/** Says where the window is, in points of the screen, as "x y width height screenWidth screenHeight". */
-	private static void ready(IWorkbench workbench, Display display, String ready) {
-		Shell shell = workbench.getWorkbenchWindows()[0].getShell();
+	private static void ready(Shell shell, String ready) {
 		Rectangle bounds = shell.getBounds();
-		Rectangle screen = display.getPrimaryMonitor().getBounds();
+		Rectangle screen = shell.getDisplay().getPrimaryMonitor().getBounds();
 		String text = bounds.x + " " + bounds.y + " " + bounds.width + " " + bounds.height + " " + screen.width + " "
 				+ screen.height + "\n";
 		try {

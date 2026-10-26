@@ -85,8 +85,20 @@ case "$SYSTEM" in
 windows)
 	# Nothing in front of Eclipse (Edge opens its first run page on the runners).
 	taskkill //F //IM msedge.exe //T > /dev/null 2>&1 || true
+	# Then the preference page of the plug-in, which the helper opens once this file exists.
+	PREFERENCES="$PWD/build/screenshots/preferences"
+	rm -f "$PREFERENCES" "$PREFERENCES.ready"
+	export SCREENSHOT_PREFERENCES
+	SCREENSHOT_PREFERENCES=$(cygpath -w "$PREFERENCES")
 	start "$ECLIPSE_HOME/eclipse.exe"
 	powershell -NoProfile -ExecutionPolicy Bypass -File tools/screenshot-windows.ps1 -Out "$(cygpath -w "$OUT")"
+	touch "$PREFERENCES"
+	for _ in $(seq 60); do
+		[ -s "$PREFERENCES.ready" ] && break
+		sleep 1
+	done
+	powershell -NoProfile -ExecutionPolicy Bypass -File tools/screenshot-windows.ps1 -Title 'Preferences*' \
+		-Out "$(cygpath -w "${OUT%.png}-preferences.png")"
 	;;
 linux)
 	# GTK draws the title bar itself (GTK_CSD=1), as on GNOME under Wayland: it does so under X11 only with a window

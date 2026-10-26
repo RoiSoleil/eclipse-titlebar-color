@@ -1,6 +1,6 @@
 # Saves the window of the workbench, title bar included, as a PNG. Called by tools/screenshot.sh once the window
 # is ready.
-param([string]$Out)
+param([string]$Out, [string]$Title = '* - Eclipse IDE')
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -20,7 +20,8 @@ public class W {
 "@
 # The bounds of DWM are in physical pixels: so are the coordinates of the screen copy once the process says so.
 [void][W]::SetProcessDPIAware()
-# The workbench is the largest visible window titled "<workspace> - Eclipse IDE": a dialog may share the name.
+# The largest visible window with this title: "<workspace> - Eclipse IDE" for the workbench, which a dialog may share,
+# or that of a dialog.
 function Find-Workbench {
   $script:found = [IntPtr]::Zero; $script:area = 0
   [W]::EnumWindows({
@@ -28,7 +29,7 @@ function Find-Workbench {
     if ([W]::IsWindowVisible($h)) {
       $sb = New-Object System.Text.StringBuilder 512
       [void][W]::GetWindowText($h, $sb, 512)
-      if ($sb.ToString() -like '* - Eclipse IDE') {
+      if ($sb.ToString() -like $Title) {
         $r = New-Object RECT
         [void][W]::GetWindowRect($h, [ref]$r)
         $a = ($r.Right - $r.Left) * ($r.Bottom - $r.Top)
