@@ -15,6 +15,14 @@ public interface TitleBarPainter {
 		if (system.startsWith("Mac")) {
 			return new MacTitleBarPainter();
 		}
+		if (system.startsWith("Linux")) {
+			return new LinuxTitleBarPainter();
+		}
+		return unsupported();
+	}
+
+	/** The painter of a system that has none: it paints nothing and says so. */
+	static TitleBarPainter unsupported() {
 		return new TitleBarPainter() {
 			@Override
 			public boolean paint(Shell shell, RGB color) {
