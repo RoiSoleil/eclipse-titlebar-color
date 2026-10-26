@@ -1,7 +1,8 @@
 package org.eclipse.titlebarcolor;
 
+import java.util.Collections;
 import java.util.Locale;
-import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import org.eclipse.swt.SWT;
@@ -15,8 +16,13 @@ import com.sun.jna.Pointer;
 
 /**
  * Linux, when Eclipse runs on Wayland itself (GDK_BACKEND=wayland): GTK draws the title bar of its windows
- * (client side decoration), so a style sheet added to the window colors it. Under X11, XWayland included, the
- * window manager draws the title bar and no application can color it.
+ * (client side decoration), so a style sheet colors it. Under X11, XWayland included, the window manager draws the
+ * title bar and no application can color it.
+ * <p>
+ * The style sheet is given to the whole screen of the application: one given to a window only styles the window,
+ * not the title bar inside it. A process of Eclipse has a single workspace, so all its windows have the same color,
+ * the dialogs of GTK (file chooser...) included, and a window gets the color of the system back only with the last
+ * one: {@link #reset(Shell)} takes the style sheet away when no painted window is left.
  */
 final class LinuxTitleBarPainter implements TitleBarPainter {
 
@@ -29,11 +35,11 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 
 		Pointer gtk_widget_get_toplevel(Pointer widget);
 
-		Pointer gtk_widget_get_style_context(Pointer widget);
+		Pointer gdk_screen_get_default();
 
-		void gtk_style_context_add_provider(Pointer context, Pointer provider, int priority);
+		void gtk_style_context_add_provider_for_screen(Pointer screen, Pointer provider, int priority);
 
-		void gtk_style_context_remove_provider(Pointer context, Pointer provider);
+		void gtk_style_context_remove_provider_for_screen(Pointer screen, Pointer provider);
 
 		Pointer gdk_display_get_default();
 
@@ -43,8 +49,17 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 	}
 
 	private Gtk gtk;
-	/** The style sheet this painter gave to each window, to take it away again. */
-	private final Map<Shell, Pointer> providers = new WeakHashMap<>();
+	/** The style sheet of the screen while a window is painted, and what it holds. */
+	private Pointer provider;
+	/** The screen the style sheet was given to, to take it back from the same one. */
+	private Pointer screen;
+	private String css;
+	/** What keeps GTK from drawing the title bars, the same for the whole life of the process; "" for nothing. */
+	private String systemProblem;
+	/** The windows painted: the style sheet goes when the last one is reset or closed. */
+	private final Set<Shell> painted = Collections.newSetFromMap(new WeakHashMap<>());
+	/** The windows whose closing is followed, once each. */
+	private final Set<Shell> followed = Collections.newSetFromMap(new WeakHashMap<>());
 
 	private Gtk gtk() {
 		if (gtk == null) {
@@ -59,20 +74,27 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 			if (window(window) == null) {
 				return "Eclipse did not give the GTK window of its window (the SWT of this Eclipse is not the one of GTK 3).";
 			}
-			Pointer gdkDisplay = gtk().gdk_display_get_default();
-			String display = gdkDisplay == null ? "no display" : gtk().g_type_name_from_instance(gdkDisplay);
-			if (!"GdkWaylandDisplay".equals(display)) {
-				return "Eclipse runs on X11 (" + display + "), where the window manager draws the title bar: start it "
-						+ "on Wayland itself (environment variable GDK_BACKEND=wayland) to color it.";
+			if (systemProblem == null) {
+				systemProblem = systemProblem();
 			}
-			String desktop = System.getenv("XDG_CURRENT_DESKTOP");
-			if (desktop != null && desktop.toUpperCase(Locale.ROOT).contains("KDE")) {
-				return "KDE draws the title bar of the windows itself, whatever the application asks.";
-			}
-			return null;
+			return systemProblem.isEmpty() ? null : systemProblem;
 		} catch (LinkageError | RuntimeException e) {
 			return "Eclipse cannot call GTK: the JNA bundle (com.sun.jna) or libgtk-3 is not available (" + e + ").";
 		}
+	}
+
+	private String systemProblem() {
+		Pointer gdkDisplay = gtk().gdk_display_get_default();
+		String display = gdkDisplay == null ? "no display" : gtk().g_type_name_from_instance(gdkDisplay);
+		if (!"GdkWaylandDisplay".equals(display)) {
+			return "Eclipse runs on X11 (" + display + "), where the window manager draws the title bar: start it "
+					+ "on Wayland itself (environment variable GDK_BACKEND=wayland) to color it.";
+		}
+		String desktop = System.getenv("XDG_CURRENT_DESKTOP");
+		if (desktop != null && desktop.toUpperCase(Locale.ROOT).contains("KDE")) {
+			return "KDE draws the title bar of the windows itself, whatever the application asks.";
+		}
+		return "";
 	}
 
 	@Override
@@ -84,29 +106,36 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 			}
 			String text = TitleBarColors.prefersLightText(color) ? "#FFFFFF" : "#000000";
 			String hex = TitleBarColors.format(color);
-			Pointer provider = gtk().gtk_css_provider_new();
 			// The window that lost the focus has its own style (:backdrop), which the theme gives a color too.
-			String css = ".titlebar, headerbar, .titlebar:backdrop, headerbar:backdrop { background: " + hex
+			String sheet = ".titlebar, headerbar, .titlebar:backdrop, headerbar:backdrop { background: " + hex
 					+ "; background-image: none; color: " + text + "; text-shadow: none; } "
 					+ ".titlebar label, headerbar label, .titlebar button, headerbar button { color: " + text + "; }";
-			if (!gtk().gtk_css_provider_load_from_data(provider, css, -1, null)) {
-				gtk().g_object_unref(provider);
-				return false;
+			if (provider == null) {
+				Pointer created = gtk().gtk_css_provider_new();
+				if (!gtk().gtk_css_provider_load_from_data(created, sheet, -1, null)) {
+					gtk().g_object_unref(created);
+					return false;
+				}
+				try {
+					screen = gtk().gdk_screen_get_default();
+					gtk().gtk_style_context_add_provider_for_screen(screen, created, GTK_STYLE_PROVIDER_PRIORITY_USER);
+				} catch (LinkageError | RuntimeException e) {
+					gtk().g_object_unref(created);
+					throw e;
+				}
+				provider = created;
+				css = sheet;
+			} else if (!sheet.equals(css)) {
+				// Loading the style sheet again replaces what it held, and GTK restyles the windows.
+				if (!gtk().gtk_css_provider_load_from_data(provider, sheet, -1, null)) {
+					return false;
+				}
+				css = sheet;
 			}
-			try {
-				gtk().gtk_style_context_add_provider(gtk().gtk_widget_get_style_context(window), provider,
-						GTK_STYLE_PROVIDER_PRIORITY_USER);
-			} catch (LinkageError | RuntimeException e) {
-				gtk().g_object_unref(provider);
-				throw e;
-			}
-			// The new style sheet is on the window: now the previous one can go.
-			Pointer previous = providers.put(shell, provider);
-			if (previous == null) {
-				// Each window frees its style sheet when it is closed, whether it was reset or not.
+			painted.add(shell);
+			if (followed.add(shell)) {
+				// A closed window counts as reset: the style sheet goes with the last one.
 				shell.addListener(SWT.Dispose, event -> reset(shell));
-			} else {
-				release(window, previous);
 			}
 			return true;
 		} catch (LinkageError | RuntimeException e) {
@@ -116,22 +145,18 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 
 	@Override
 	public void reset(Shell shell) {
-		Pointer provider = providers.remove(shell);
-		if (provider == null) {
+		if (!painted.remove(shell) || !painted.isEmpty() || provider == null) {
 			return;
 		}
 		try {
-			release(shell.isDisposed() ? null : window(shell), provider);
+			gtk().gtk_style_context_remove_provider_for_screen(screen, provider);
+			gtk().g_object_unref(provider);
 		} catch (LinkageError | RuntimeException e) {
-			// The window is gone with its style sheet.
+			// GTK is gone with the application.
 		}
-	}
-
-	private void release(Pointer window, Pointer provider) {
-		if (window != null) {
-			gtk().gtk_style_context_remove_provider(gtk().gtk_widget_get_style_context(window), provider);
-		}
-		gtk().g_object_unref(provider);
+		provider = null;
+		screen = null;
+		css = null;
 	}
 
 	/**

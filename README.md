@@ -30,7 +30,7 @@ The system draws the title bar, so each system needs its own way to color it:
 |---|---|
 | Windows 11 (build 22000 or later) | Supported, through the caption color of the Desktop Window Manager |
 | Windows 10 | Not possible: the system ignores the color, the title bar stays as it is |
-| Linux, Eclipse on Wayland itself (`GDK_BACKEND=wayland`, GNOME) | Supported (untested by eye): GTK draws the title bar, and a style sheet colors it |
+| Linux, Eclipse on Wayland itself (`GDK_BACKEND=wayland`, GNOME) | Supported (checked on Ubuntu GNOME): GTK draws the title bar, and a style sheet colors it. Eclipse often runs on XWayland even in a Wayland session: start it with `GDK_BACKEND=wayland` |
 | Linux, Eclipse on X11 (XWayland included), KDE | Not possible: the window manager draws the title bar, whatever the application asks. The preference page says so |
 | macOS | Supported (untested by eye): the title bar of the `NSWindow` is made transparent and its background color shows through |
 
