@@ -1,3 +1,5 @@
+<img src="icons/logo-64.png" alt="" width="64" height="64" align="right">
+
 # Title Bar Color: a color of its own for the title bar of each workspace
 
 [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/RoiSoleil/eclipse-titlebar-color/build.yml)](https://github.com/RoiSoleil/eclipse-titlebar-color/actions/workflows/build.yml)
