@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension point="org.eclipse.ui.startup">
+      <startup class="org.eclipse.titlebarcolor.Startup"/>
+   </extension>
+   <extension point="org.eclipse.ui.preferencePages">
+      <page
+            id="org.eclipse.titlebarcolor.preferences"
+            name="Title Bar Color"
+            category="org.eclipse.ui.preferencePages.Views"
+            class="org.eclipse.titlebarcolor.TitleBarColorPreferencePage"/>
+   </extension>
+</plugin>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <feature id="org.eclipse.titlebarcolor.feature">
+      <category name="org.eclipse.titlebarcolor"/>
+   </feature>
+   <category-def name="org.eclipse.titlebarcolor" label="Title Bar Color"/>
+</site>

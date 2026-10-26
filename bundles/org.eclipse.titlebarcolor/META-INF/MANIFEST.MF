@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: Title Bar Color
+Bundle-SymbolicName: org.eclipse.titlebarcolor;singleton:=true
+Bundle-Version: 0.1.0.qualifier
+Bundle-Vendor: RoiSoleil
+Bundle-RequiredExecutionEnvironment: JavaSE-21
+Bundle-ActivationPolicy: lazy
+Automatic-Module-Name: org.eclipse.titlebarcolor
+Require-Bundle: org.eclipse.ui,
+ org.eclipse.core.runtime,
+ org.eclipse.swt,
+ org.eclipse.jface,
+ com.sun.jna;resolution:=optional
