@@ -85,4 +85,22 @@ class TitleBarColorPreferencePageTest {
 		assertEquals(problem == null ? null : problem.lines().findFirst().get(), page.getMessage());
 		assertEquals(problem == null ? IMessageProvider.NONE : IMessageProvider.WARNING, page.getMessageType());
 	}
+
+	@Test
+	void showsTheProblemAsAWarningAndTheWaysAroundItBelow() {
+		Composite content = new Composite(shell, SWT.NONE);
+		page.showProblem(content, "The title bar cannot be colored.\nDo this.\nOr that.");
+		assertEquals("The title bar cannot be colored.", page.getMessage());
+		assertEquals(IMessageProvider.WARNING, page.getMessageType());
+		assertEquals("To color the title bar:\nDo this.\nOr that.",
+				((org.eclipse.swt.widgets.Label) content.getChildren()[0]).getText());
+	}
+
+	@Test
+	void showsAProblemWithoutWayAroundItAsAWarningOnly() {
+		Composite content = new Composite(shell, SWT.NONE);
+		page.showProblem(content, "Nothing can be done.");
+		assertEquals("Nothing can be done.", page.getMessage());
+		assertEquals(0, content.getChildren().length);
+	}
 }

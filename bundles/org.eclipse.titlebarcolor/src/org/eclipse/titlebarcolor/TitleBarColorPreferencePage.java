@@ -42,20 +42,27 @@ public class TitleBarColorPreferencePage extends PreferencePage implements IWork
 		selector.setEnabled(current != null);
 		enabled.addListener(SWT.Selection, e -> selector.setEnabled(enabled.getSelection()));
 		// The page tells why nothing will happen, instead of letting the user pick a color for nothing.
-		String problem = TitleBarPainter.forThisSystem().problem(parent.getShell());
-		if (problem != null) {
-			// The first line says what is wrong, the next ones the ways around it in this configuration.
-			int end = problem.indexOf('\n');
-			setMessage(end < 0 ? problem : problem.substring(0, end), WARNING);
-			if (end >= 0) {
-				Label solutions = new Label(page, SWT.WRAP);
-				solutions.setText("To color the title bar:\n" + problem.substring(end + 1));
-				GridData data = new GridData(SWT.FILL, SWT.TOP, true, false, 2, 1);
-				data.widthHint = 400;
-				solutions.setLayoutData(data);
-			}
-		}
+		showProblem(page, TitleBarPainter.forThisSystem().problem(parent.getShell()));
 		return page;
+	}
+
+	/**
+	 * Shows what keeps the title bar from being colored, if anything: its first line as the warning of the page, the
+	 * next ones (the ways around it in this configuration) below the color.
+	 */
+	void showProblem(Composite page, String problem) {
+		if (problem == null) {
+			return;
+		}
+		int end = problem.indexOf('\n');
+		setMessage(end < 0 ? problem : problem.substring(0, end), WARNING);
+		if (end >= 0) {
+			Label solutions = new Label(page, SWT.WRAP);
+			solutions.setText("To color the title bar:\n" + problem.substring(end + 1));
+			GridData data = new GridData(SWT.FILL, SWT.TOP, true, false, 2, 1);
+			data.widthHint = 400;
+			solutions.setLayoutData(data);
+		}
 	}
 
 	@Override
