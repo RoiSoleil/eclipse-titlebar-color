@@ -2,14 +2,11 @@ package org.eclipse.titlebarcolor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
-import org.eclipse.ui.IWindowListener;
-import org.eclipse.ui.IWorkbench;
-import org.eclipse.ui.IWorkbenchWindow;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.core.internal.preferences.EclipsePreferences;
@@ -33,6 +30,7 @@ class TitleBarColorApplierTest {
 		}
 	};
 	private Shell shell;
+	private TitleBarColorApplier installed;
 
 	@BeforeEach
 	void open() {
@@ -43,6 +41,9 @@ class TitleBarColorApplierTest {
 
 	@AfterEach
 	void close() {
+		if (installed != null) {
+			installed.dispose();
+		}
 		shell.dispose();
 		TitleBarColors.set(null);
 		TitleBarColors.useForTests(null);
@@ -51,19 +52,19 @@ class TitleBarColorApplierTest {
 	@Test
 	void paintsTheWindowWithTheColorOfTheWorkspace() {
 		TitleBarColors.set(new RGB(1, 2, 3));
-		new TitleBarColorApplier(null, painter).apply(shell);
+		new TitleBarColorApplier(shell.getDisplay(), painter).apply(shell);
 		assertEquals(List.of("paint #010203"), calls);
 	}
 
 	@Test
 	void leavesTheWindowAloneWhenThereIsNoColorAndNothingWasPainted() {
-		new TitleBarColorApplier(null, painter).apply(shell);
+		new TitleBarColorApplier(shell.getDisplay(), painter).apply(shell);
 		assertEquals(List.of(), calls);
 	}
 
 	@Test
 	void givesTheSystemColorBackWhenTheColorIsRemoved() {
-		TitleBarColorApplier applier = new TitleBarColorApplier(null, painter);
+		TitleBarColorApplier applier = new TitleBarColorApplier(shell.getDisplay(), painter);
 		TitleBarColors.set(new RGB(1, 2, 3));
 		applier.apply(shell);
 		TitleBarColors.set(null);
@@ -73,55 +74,51 @@ class TitleBarColorApplierTest {
 	}
 
 	@Test
+	void doesNotPaintAgainAWindowOfTheSameColor() {
+		TitleBarColorApplier applier = new TitleBarColorApplier(shell.getDisplay(), painter);
+		TitleBarColors.set(new RGB(1, 2, 3));
+		applier.apply(shell);
+		applier.apply(shell);
+		TitleBarColors.set(new RGB(4, 5, 6));
+		applier.apply(shell);
+		assertEquals(List.of("paint #010203", "paint #040506"), calls);
+	}
+
+	@Test
 	void ignoresAWindowThatIsGone() {
 		shell.dispose();
-		new TitleBarColorApplier(null, painter).apply(shell);
-		new TitleBarColorApplier(null, painter).apply(null);
+		new TitleBarColorApplier(Display.getDefault(), painter).apply(shell);
+		new TitleBarColorApplier(Display.getDefault(), painter).apply(null);
 		assertEquals(List.of(), calls);
-	}
-
-	/** A workbench with one window, which hands the window listener it is given to the test. */
-	private IWorkbench workbench(IWorkbenchWindow window, IWindowListener[] listener) {
-		return (IWorkbench) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] { IWorkbench.class },
-				(proxy, method, args) -> switch (method.getName()) {
-				case "getDisplay" -> shell.getDisplay();
-				case "getWorkbenchWindows" -> new IWorkbenchWindow[] { window };
-				case "addWindowListener" -> {
-					listener[0] = (IWindowListener) args[0];
-					yield null;
-				}
-				default -> throw new UnsupportedOperationException(method.getName());
-				});
-	}
-
-	private IWorkbenchWindow window() {
-		return (IWorkbenchWindow) Proxy.newProxyInstance(getClass().getClassLoader(),
-				new Class<?>[] { IWorkbenchWindow.class }, (proxy, method, args) -> {
-					if (method.getName().equals("getShell")) {
-						return shell;
-					}
-					throw new UnsupportedOperationException(method.getName());
-				});
 	}
 
 	@Test
 	void installColorsTheOpenWindowsAndTheNextOnes() {
-		IWindowListener[] listener = new IWindowListener[1];
-		IWorkbenchWindow window = window();
 		TitleBarColors.set(new RGB(1, 2, 3));
-		new TitleBarColorApplier(workbench(window, listener), painter).install();
+		installed = new TitleBarColorApplier(shell.getDisplay(), painter);
+		installed.install();
 		assertEquals(List.of("paint #010203"), calls);
-		listener[0].windowOpened(window);
-		listener[0].windowActivated(window);
-		listener[0].windowDeactivated(window);
-		listener[0].windowClosed(window);
-		assertEquals(List.of("paint #010203", "paint #010203"), calls);
+		// A dialog or a detached view is a shell of its own.
+		Shell dialog = new Shell(shell, SWT.DIALOG_TRIM);
+		try {
+			calls.clear();
+			dialog.open();
+			assertEquals(List.of("paint #010203"), calls);
+			// A tool tip has no title bar.
+			calls.clear();
+			Shell toolTip = new Shell(shell, SWT.NO_TRIM | SWT.ON_TOP);
+			toolTip.open();
+			toolTip.dispose();
+			assertEquals(List.of(), calls);
+		} finally {
+			dialog.dispose();
+		}
 	}
 
 	@Test
 	void installFollowsTheColorOfThePreferences() {
-		IWindowListener[] listener = new IWindowListener[1];
-		new TitleBarColorApplier(workbench(window(), listener), painter).install();
+		installed = new TitleBarColorApplier(shell.getDisplay(), painter);
+		installed.install();
 		calls.clear();
 		TitleBarColors.set(new RGB(4, 5, 6));
 		TitleBarColors.preferences().put("another key", "x");

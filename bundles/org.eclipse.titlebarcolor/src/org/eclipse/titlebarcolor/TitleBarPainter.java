@@ -8,8 +8,12 @@ public interface TitleBarPainter {
 
 	/** The painter of the system Eclipse runs on. */
 	static TitleBarPainter forThisSystem() {
-		if (System.getProperty("os.name", "").startsWith("Windows")) {
+		String system = System.getProperty("os.name", "");
+		if (system.startsWith("Windows")) {
 			return new WindowsTitleBarPainter();
+		}
+		if (system.startsWith("Mac")) {
+			return new MacTitleBarPainter();
 		}
 		return new TitleBarPainter() {
 			@Override
@@ -18,9 +22,19 @@ public interface TitleBarPainter {
 			}
 
 			@Override
+			public boolean supported() {
+				return false;
+			}
+
+			@Override
 			public void reset(Shell shell) {
 			}
 		};
+	}
+
+	/** Whether this system can color a title bar at all (a version of it may still refuse). */
+	default boolean supported() {
+		return true;
 	}
 
 	/**

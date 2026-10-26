@@ -1,63 +1,69 @@
 package org.eclipse.titlebarcolor;
 
-import java.util.Collections;
-import java.util.Set;
+import java.util.Map;
 import java.util.WeakHashMap;
 
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
+import org.eclipse.core.runtime.preferences.IEclipsePreferences.IPreferenceChangeListener;
+import org.eclipse.core.runtime.preferences.IEclipsePreferences.PreferenceChangeEvent;
+import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.Event;
+import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IWindowListener;
-import org.eclipse.ui.IWorkbench;
-import org.eclipse.ui.IWorkbenchWindow;
 
-/** Keeps the title bar of the windows of the workbench in the color chosen for this workspace. */
+/**
+ * Keeps the title bar of every window of the display in the color chosen for this workspace: the windows of the
+ * workbench, and also the dialogs and the detached views and editors.
+ */
 final class TitleBarColorApplier {
 
-	private final IWorkbench workbench;
+	private final Display display;
 	private final TitleBarPainter painter;
-	/** The windows this plug-in painted: the others keep the color they have, whoever gave it. */
-	private final Set<Shell> painted = Collections.newSetFromMap(new WeakHashMap<>());
+	/** The windows this plug-in painted, with their color: the others keep the color they have, whoever gave it. */
+	private final Map<Shell, RGB> painted = new WeakHashMap<>();
+	private final Listener showFilter = this::shown;
+	private final IPreferenceChangeListener colorListener = this::colorChanged;
 
-	TitleBarColorApplier(IWorkbench workbench, TitleBarPainter painter) {
-		this.workbench = workbench;
+	TitleBarColorApplier(Display display, TitleBarPainter painter) {
+		this.display = display;
 		this.painter = painter;
+	}
+
+	private void shown(Event event) {
+		if (event.widget instanceof Shell shell) {
+			apply(shell);
+		}
+	}
+
+	private void colorChanged(PreferenceChangeEvent event) {
+		if (TitleBarColors.COLOR.equals(event.getKey()) && !display.isDisposed()) {
+			display.asyncExec(this::applyToAll);
+		}
 	}
 
 	/** Colors the windows now, and the next ones and the next colors as they come. Runs in the UI thread. */
 	void install() {
 		applyToAll();
-		workbench.addWindowListener(new IWindowListener() {
-			@Override
-			public void windowOpened(IWorkbenchWindow window) {
-				apply(window.getShell());
-			}
+		display.addFilter(SWT.Show, showFilter);
+		TitleBarColors.preferences().addPreferenceChangeListener(colorListener);
+	}
 
-			@Override
-			public void windowActivated(IWorkbenchWindow window) {
-			}
-
-			@Override
-			public void windowDeactivated(IWorkbenchWindow window) {
-			}
-
-			@Override
-			public void windowClosed(IWorkbenchWindow window) {
-			}
-		});
+	void dispose() {
+		if (!display.isDisposed()) {
+			display.removeFilter(SWT.Show, showFilter);
+		}
 		IEclipsePreferences preferences = TitleBarColors.preferences();
-		Display display = workbench.getDisplay();
-		preferences.addPreferenceChangeListener(event -> {
-			if (TitleBarColors.COLOR.equals(event.getKey()) && !display.isDisposed()) {
-				display.asyncExec(this::applyToAll);
-			}
-		});
+		preferences.removePreferenceChangeListener(colorListener);
 	}
 
 	void applyToAll() {
-		for (IWorkbenchWindow window : workbench.getWorkbenchWindows()) {
-			apply(window.getShell());
+		if (display.isDisposed()) {
+			return;
+		}
+		for (Shell shell : display.getShells()) {
+			apply(shell);
 		}
 	}
 
@@ -66,12 +72,15 @@ final class TitleBarColorApplier {
 			return;
 		}
 		RGB color = TitleBarColors.get();
-		if (color != null) {
-			if (painter.paint(shell, color)) {
-				painted.add(shell);
+		if (color == null) {
+			// Whatever became of its title bar, a window this plug-in painted gets the color of the system back.
+			if (painted.remove(shell) != null) {
+				painter.reset(shell);
 			}
-		} else if (painted.remove(shell)) {
-			painter.reset(shell);
+		} else if ((shell.getStyle() & SWT.TITLE) != 0 && !color.equals(painted.get(shell))
+				&& painter.paint(shell, color)) {
+			// No title bar, no color: tool tips and pop-ups are shells too.
+			painted.put(shell, color);
 		}
 	}
 }

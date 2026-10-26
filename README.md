@@ -10,6 +10,8 @@ at a glance which workspace you are in.
 
 *Window > Preferences > General > Appearance > Title Bar Color*
 
+It applies to every window with a title bar: the main windows, the dialogs and the detached views and editors.
+
 The color is a preference of the workspace: every workspace keeps its own. The change is applied
 at once to the open windows, without restarting Eclipse, and again at each start. The text of the title
 bar turns black or white, whichever reads better on the color.
@@ -29,7 +31,7 @@ The system draws the title bar, so each system needs its own way to color it:
 | Windows 11 (build 22000 or later) | Supported, through the caption color of the Desktop Window Manager |
 | Windows 10 | Not possible: the system ignores the color, the title bar stays as it is |
 | Linux | Planned |
-| macOS | Planned |
+| macOS | Supported (untested by eye): the title bar of the `NSWindow` is made transparent and its background color shows through |
 
 On a system that is not supported yet the plug-in does nothing, and the preference page says so.
 A system is added by implementing `TitleBarPainter` (`bundles/org.eclipse.titlebarcolor/src`).

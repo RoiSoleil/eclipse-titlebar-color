@@ -8,8 +8,7 @@ public class Startup implements IStartup {
 
 	@Override
 	public void earlyStartup() {
-		var workbench = PlatformUI.getWorkbench();
-		workbench.getDisplay().asyncExec(
-				() -> new TitleBarColorApplier(workbench, TitleBarPainter.forThisSystem()).install());
+		var display = PlatformUI.getWorkbench().getDisplay();
+		display.asyncExec(() -> new TitleBarColorApplier(display, TitleBarPainter.forThisSystem()).install());
 	}
 }

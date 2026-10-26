@@ -12,7 +12,7 @@ import org.junit.jupiter.api.condition.OS;
 class TitleBarPainterTest {
 
 	@Test
-	@DisabledOnOs(OS.WINDOWS)
+	@DisabledOnOs({ OS.WINDOWS, OS.MAC })
 	void aSystemWithoutPainterLeavesTheTitleBarAlone() {
 		TitleBarPainter painter = TitleBarPainter.forThisSystem();
 		Shell shell = new Shell(Display.getDefault());

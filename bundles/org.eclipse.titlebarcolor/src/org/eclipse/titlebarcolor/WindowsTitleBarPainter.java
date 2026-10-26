@@ -56,7 +56,7 @@ final class WindowsTitleBarPainter implements TitleBarPainter {
 		try {
 			// A negative result (E_INVALIDARG...) is a Windows that does not know the attribute.
 			return dwmapi().DwmSetWindowAttribute(window, attribute, new IntByReference(colorRef), 4) == 0;
-		} catch (LinkageError e) {
+		} catch (LinkageError | RuntimeException e) {
 			// JNA, or the library of Windows, is not there: the title bar keeps its color.
 			return false;
 		}
