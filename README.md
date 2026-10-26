@@ -34,7 +34,8 @@ The system draws the title bar, so each system needs its own way to color it:
 | Linux, Eclipse on X11 (XWayland included), KDE | Not possible: the window manager draws the title bar, whatever the application asks. The preference page says so |
 | macOS | Supported (untested by eye): the title bar of the `NSWindow` is made transparent and its background color shows through |
 
-Where the title bar cannot be colored the plug-in does nothing, and the preference page says why in a
+Where the title bar cannot be colored, the windows of the workbench get a band of the same color (4 pixels,
+along the top of the window, drawn by the plug-in itself) instead, and the preference page says why in a
 warning at its top: an old version of Windows, a missing JNA bundle, a system that is not supported yet
 (with the session type and `GDK_BACKEND` of Linux).
 A system is added by implementing `TitleBarPainter` (`bundles/org.eclipse.titlebarcolor/src`).
