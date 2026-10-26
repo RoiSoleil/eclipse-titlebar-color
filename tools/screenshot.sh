@@ -40,9 +40,8 @@ WORKSPACE="$PWD/build/screenshots/my-workspace"
 SETTINGS="$WORKSPACE/.metadata/.plugins/org.eclipse.core.runtime/.settings"
 rm -rf "$WORKSPACE" && mkdir -p "$SETTINGS"
 printf 'color=\\#%s\neclipse.preferences.version=1\n' "$COLOR" > "$SETTINGS/org.eclipse.titlebarcolor.prefs"
-# No welcome page, and no question about Microsoft Defender: the workbench itself is what the screenshot shows.
+# No welcome page: the workbench itself is what the screenshot shows.
 printf 'showIntro=false\neclipse.preferences.version=1\n' > "$SETTINGS/org.eclipse.ui.prefs"
-printf 'windows.defender.startup.check.skip=true\neclipse.preferences.version=1\n' > "$SETTINGS/org.eclipse.ui.workbench.prefs"
 mkdir -p screenshots
 OUT="$PWD/screenshots/$SYSTEM.png"
 READY="$PWD/build/screenshots/ready"
@@ -90,7 +89,8 @@ windows)
 	powershell -NoProfile -ExecutionPolicy Bypass -File tools/screenshot-windows.ps1 -Out "$(cygpath -w "$OUT")"
 	;;
 linux)
-	# Xvfb has no window manager: GTK draws the title bar itself (GTK_CSD=1), as on GNOME under Wayland.
+	# GTK draws the title bar itself (GTK_CSD=1), as on GNOME under Wayland: it does so under X11 only with a window
+	# manager that knows the frame of GTK windows, Mutter here (started by the workflow).
 	export GTK_CSD=1
 	start "$ECLIPSE_HOME/eclipse"
 	# Without a browser of its own, Eclipse opens some pages of its first start in Firefox, in front of it.
@@ -107,12 +107,17 @@ linux)
 		echo "$((WIDTH * HEIGHT)) $id"
 	done | sort -n | tail -1 | cut -d' ' -f2)
 	eval "$(xdotool getwindowgeometry --shell "$WINDOW")"
+	# The window of GTK has room for its shadow around the frame: "left, right, top, bottom".
+	EXTENTS=$(xprop -id "$WINDOW" _GTK_FRAME_EXTENTS | sed -n 's/.*= *//p' | tr -d ' ')
+	IFS=, read -r LEFT RIGHT TOP BOTTOM <<< "${EXTENTS:-0,0,0,0}"
 	import -window root "$FULL"
-	convert "$FULL" -crop "${WIDTH}x${HEIGHT}+${X}+${Y}" +repage "$OUT"
+	convert "$FULL" -crop "$((WIDTH - LEFT - RIGHT))x$((HEIGHT - TOP - BOTTOM))+$((X + LEFT))+$((Y + TOP))" +repage "$OUT"
 	;;
 macos)
 	start "$ECLIPSE_HOME/../MacOS/eclipse"
 	osascript -e 'tell application "Eclipse" to activate' || true
+	# macOS asks whether Eclipse may find devices on the local network, in front of it: the answer is no.
+	osascript tools/screenshot-macos-alert.applescript || true
 	sleep 3
 	screencapture -x "$FULL"
 	# The bounds are in points: the screen may have more pixels than points.

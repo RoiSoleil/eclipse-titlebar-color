@@ -90,9 +90,14 @@ jobs:
          if: runner.os == 'Linux'
          run: |
             sudo apt-get update
-            sudo apt-get install -y xvfb libgtk-3-0 xdotool imagemagick
+            sudo apt-get install -y xvfb libgtk-3-0 xdotool imagemagick x11-utils mutter dbus-x11
             Xvfb :99 -screen 0 1920x1080x24 &
             echo "DISPLAY=:99" >> "$GITHUB_ENV"
+            sleep 3
+            # The window manager of GNOME: GTK draws its title bars under X11 only with a manager that knows them.
+            DISPLAY=:99 dbus-launch --exit-with-session mutter --x11 --replace --sm-disable > "$RUNNER_TEMP/mutter.log" 2>&1 &
+            sleep 5
+            cat "$RUNNER_TEMP/mutter.log" || true
       -  name: Screenshot
          timeout-minutes: 15
          run: ECLIPSE_HOME="$HOME/${{ matrix.home }}" ./tools/screenshot.sh ${{ matrix.system }} ${{ matrix.color }}

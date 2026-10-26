@@ -74,9 +74,11 @@ public class ScreenshotSetup implements IStartup {
 		IWorkbenchWindow window = workbench.getWorkbenchWindows()[0];
 		IWorkbenchPage page = window.getActivePage();
 		if (page != null) {
-			// The notification of the packages of Eclipse (Sponsor the Eclipse IDE) opens a view with a web page.
+			// The notification of the packages of Eclipse (Sponsor the Eclipse IDE) opens a view with a web page,
+			// titled Notification where there is no browser.
 			for (IViewReference view : page.getViewReferences()) {
-				if (view.getPartName().contains("Sponsor") || view.getTitle().contains("Sponsor")) {
+				String name = view.getPartName() + " " + view.getTitle();
+				if (name.contains("Sponsor") || name.contains("Notification")) {
 					page.hideView(view);
 				}
 			}
@@ -85,6 +87,12 @@ public class ScreenshotSetup implements IStartup {
 				IDE.openEditor(page, sample());
 			} catch (CoreException e) {
 				e.printStackTrace();
+			}
+		}
+		// The question about Microsoft Defender comes before the preferences of the workspace are read.
+		for (Shell dialog : window.getShell().getDisplay().getShells()) {
+			if (!dialog.isDisposed() && dialog.getText().contains("Defender")) {
+				dialog.close();
 			}
 		}
 		Shell shell = window.getShell();
