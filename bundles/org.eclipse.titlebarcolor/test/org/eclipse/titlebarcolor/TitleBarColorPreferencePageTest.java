@@ -82,7 +82,7 @@ class TitleBarColorPreferencePageTest {
 	@Test
 	void tellsWhyNothingWillHappenWhereTheSystemCannotDoIt() {
 		String problem = TitleBarPainter.forThisSystem().problem(shell);
-		assertEquals(problem, page.getMessage());
+		assertEquals(problem == null ? null : problem.lines().findFirst().get(), page.getMessage());
 		assertEquals(problem == null ? IMessageProvider.NONE : IMessageProvider.WARNING, page.getMessageType());
 	}
 }

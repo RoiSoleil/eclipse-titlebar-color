@@ -15,9 +15,10 @@ import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 
 /**
- * Linux, when Eclipse runs on Wayland itself (GDK_BACKEND=wayland): GTK draws the title bar of its windows
- * (client side decoration), so a style sheet colors it. Under X11, XWayland included, the window manager draws the
- * title bar and no application can color it.
+ * Linux, when GTK draws the title bar of the windows (client side decoration, the style class "csd" of the window):
+ * a style sheet colors it. GTK does so when Eclipse runs on Wayland itself under GNOME, or anywhere when it is started
+ * with GTK_CSD=1. Otherwise the window manager draws the title bar (X11, XWayland, KDE) and no application can color
+ * it: the preference page then says what to start Eclipse with.
  * <p>
  * The style sheet is given to the whole screen of the application: one given to a window only styles the window,
  * not the title bar inside it. A process of Eclipse has a single workspace, so all its windows have the same color,
@@ -43,6 +44,12 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 
 		Pointer gdk_display_get_default();
 
+		Pointer gtk_widget_get_style_context(Pointer widget);
+
+		boolean gtk_style_context_has_class(Pointer context, String name);
+
+		boolean gtk_widget_get_realized(Pointer widget);
+
 		String g_type_name_from_instance(Pointer instance);
 
 		void g_object_unref(Pointer object);
@@ -54,8 +61,10 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 	/** The screen the style sheet was given to, to take it back from the same one. */
 	private Pointer screen;
 	private String css;
-	/** What keeps GTK from drawing the title bars, the same for the whole life of the process; "" for nothing. */
-	private String systemProblem;
+	/** What keeps GTK from drawing the title bars in this configuration, with the ways around it; computed once. */
+	private String configurationProblem;
+	/** Whether the configuration lets GTK draw the title bars, for a window not on the screen yet; computed once. */
+	private Boolean configurationDecorates;
 	/** The windows painted: the style sheet goes when the last one is reset or closed. */
 	private final Set<Shell> painted = Collections.newSetFromMap(new WeakHashMap<>());
 	/** The windows whose closing is followed, once each. */
@@ -71,30 +80,66 @@ final class LinuxTitleBarPainter implements TitleBarPainter {
 	@Override
 	public String problem(Shell window) {
 		try {
-			if (window(window) == null) {
+			Pointer gtkWindow = window(window);
+			if (gtkWindow == null) {
 				return "Eclipse did not give the GTK window of its window (the SWT of this Eclipse is not the one of GTK 3).";
 			}
-			if (systemProblem == null) {
-				systemProblem = systemProblem();
+			if (configurationProblem == null) {
+				configurationProblem = configurationProblem();
 			}
-			return systemProblem.isEmpty() ? null : systemProblem;
+			// GTK says whether it decorates a window once the window is on the screen, and decides for each window
+			// (it does not decorate a pop-up): before, the configuration tells.
+			boolean decorated = gtk().gtk_widget_get_realized(gtkWindow)
+					? gtk().gtk_style_context_has_class(gtk().gtk_widget_get_style_context(gtkWindow), "csd")
+					: configurationDecorates;
+			return decorated ? null : configurationProblem;
 		} catch (LinkageError | RuntimeException e) {
 			return "Eclipse cannot call GTK: the JNA bundle (com.sun.jna) or libgtk-3 is not available (" + e + ").";
 		}
 	}
 
-	private String systemProblem() {
+	/**
+	 * What keeps GTK from drawing the title bars in this configuration, with the ways around it, one per line after
+	 * the first. Also tells whether the configuration should let GTK draw them.
+	 */
+	private String configurationProblem() {
 		Pointer gdkDisplay = gtk().gdk_display_get_default();
 		String display = gdkDisplay == null ? "no display" : gtk().g_type_name_from_instance(gdkDisplay);
-		if (!"GdkWaylandDisplay".equals(display)) {
-			return "Eclipse runs on X11 (" + display + "), where the window manager draws the title bar: start it "
-					+ "on Wayland itself (environment variable GDK_BACKEND=wayland) to color it.";
-		}
+		boolean wayland = "GdkWaylandDisplay".equals(display);
 		String desktop = System.getenv("XDG_CURRENT_DESKTOP");
-		if (desktop != null && desktop.toUpperCase(Locale.ROOT).contains("KDE")) {
-			return "KDE draws the title bar of the windows itself, whatever the application asks.";
+		boolean kde = desktop != null && desktop.toUpperCase(Locale.ROOT).contains("KDE");
+		boolean csdForced = "1".equals(System.getenv("GTK_CSD"));
+		configurationDecorates = csdForced || wayland && !kde;
+		String eclipse = quoted(System.getProperty("eclipse.launcher", "/path/to/eclipse"));
+		StringBuilder problem = new StringBuilder(kde ? "KDE draws the title bar of Eclipse, not GTK: Eclipse cannot color it."
+				: "The window manager draws the title bar of Eclipse, not GTK: Eclipse cannot color it.");
+		if (csdForced) {
+			// The usual way around did not work: nothing else is known to.
+			return problem.append(" GTK_CSD=1 did not make GTK draw it in this configuration (").append(display)
+					.append(kde ? ", KDE" : "").append(").").toString();
 		}
-		return "";
+		boolean waylandSession = System.getenv("WAYLAND_DISPLAY") != null
+				|| "wayland".equals(System.getenv("XDG_SESSION_TYPE"));
+		String variable = "GTK_CSD=1";
+		if (!wayland && waylandSession && !kde) {
+			variable = "GDK_BACKEND=wayland";
+			problem.append("\nStart Eclipse on Wayland itself, where GTK draws the title bar: GDK_BACKEND=wayland ")
+					.append(eclipse);
+			problem.append("\nOr have GTK draw the title bar: GTK_CSD=1 ").append(eclipse);
+		} else {
+			problem.append("\nHave GTK draw the title bar: GTK_CSD=1 ").append(eclipse);
+		}
+		if (kde) {
+			problem.append(" (the title bar then has the look of GTK, not that of Breeze)");
+		}
+		problem.append("\nSet the variable in the command or the .desktop file that starts Eclipse (for example Exec=env ")
+				.append(variable).append(' ').append(eclipse).append("), then restart Eclipse.");
+		return problem.toString();
+	}
+
+	/** The path as a shell and a .desktop file read it. */
+	private static String quoted(String path) {
+		return path.matches("[\\w./+-]+") ? path : "\"" + path.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
 	}
 
 	@Override

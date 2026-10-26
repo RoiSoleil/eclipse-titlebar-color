@@ -30,13 +30,14 @@ The system draws the title bar, so each system needs its own way to color it:
 |---|---|
 | Windows 11 (build 22000 or later) | Supported, through the caption color of the Desktop Window Manager |
 | Windows 10 | Not possible: the system ignores the color, the title bar stays as it is |
-| Linux, Eclipse on Wayland itself (`GDK_BACKEND=wayland`, GNOME) | Supported (checked on Ubuntu GNOME): GTK draws the title bar, and a style sheet colors it. Eclipse often runs on XWayland even in a Wayland session: start it with `GDK_BACKEND=wayland` |
-| Linux, Eclipse on X11 (XWayland included), KDE | Not possible: the window manager draws the title bar, whatever the application asks. The preference page says so |
+| Linux, wherever GTK draws the title bar: Eclipse on Wayland itself under GNOME, or Eclipse started with `GTK_CSD=1` (X11 and XWayland included) | Supported, checked on Ubuntu GNOME (Wayland, and X11 with `GTK_CSD=1`): a style sheet colors the title bar drawn by GTK |
+| Linux, where the window manager draws the title bar (X11 or XWayland without `GTK_CSD=1`, KDE) | Not possible as such: the preference page says so and gives the ways around it for the configuration (`GDK_BACKEND=wayland`, `GTK_CSD=1`). Untested on KDE, where `GTK_CSD=1` gives the title bar the look of GTK |
 | macOS | Supported (untested by eye): the title bar of the `NSWindow` is made transparent and its background color shows through |
 
 Where the title bar cannot be colored the plug-in does nothing, and the preference page says why in a
-warning at its top: an old version of Windows, a missing JNA bundle, a system that is not supported yet
-(with the session type and `GDK_BACKEND` of Linux).
+warning at its top (an old version of Windows, a missing JNA bundle, a window manager that draws the title
+bar), with the ways around it for the configuration when there are some. A configuration known to work gets
+no message.
 A system is added by implementing `TitleBarPainter` (`bundles/org.eclipse.titlebarcolor/src`).
 
 # Build
