@@ -44,14 +44,9 @@ public class TitleBarColorPreferencePage extends PreferencePage implements IWork
 		// The page tells why nothing will happen, instead of letting the user pick a color for nothing.
 		String problem = TitleBarPainter.forThisSystem().problem(parent.getShell());
 		if (problem != null) {
-			setMessage(message(problem), WARNING);
+			setMessage(problem, WARNING);
 		}
 		return page;
-	}
-
-	/** What the page says when the system cannot color the title bar. */
-	static String message(String problem) {
-		return problem + " Once a color is chosen, the windows of the workbench get a band of that color along the top instead.";
 	}
 
 	@Override
