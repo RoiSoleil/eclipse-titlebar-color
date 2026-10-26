@@ -40,8 +40,9 @@ WORKSPACE="$PWD/build/screenshots/my-workspace"
 SETTINGS="$WORKSPACE/.metadata/.plugins/org.eclipse.core.runtime/.settings"
 rm -rf "$WORKSPACE" && mkdir -p "$SETTINGS"
 printf 'color=\\#%s\neclipse.preferences.version=1\n' "$COLOR" > "$SETTINGS/org.eclipse.titlebarcolor.prefs"
-# No welcome page: the workbench itself is what the screenshot shows.
+# No welcome page, and no question about Microsoft Defender: the workbench itself is what the screenshot shows.
 printf 'showIntro=false\neclipse.preferences.version=1\n' > "$SETTINGS/org.eclipse.ui.prefs"
+printf 'windows.defender.startup.check.skip=true\neclipse.preferences.version=1\n' > "$SETTINGS/org.eclipse.ui.workbench.prefs"
 mkdir -p screenshots
 OUT="$PWD/screenshots/$SYSTEM.png"
 READY="$PWD/build/screenshots/ready"
@@ -92,6 +93,9 @@ linux)
 	# Xvfb has no window manager: GTK draws the title bar itself (GTK_CSD=1), as on GNOME under Wayland.
 	export GTK_CSD=1
 	start "$ECLIPSE_HOME/eclipse"
+	# Without a browser of its own, Eclipse opens some pages of its first start in Firefox, in front of it.
+	pkill -f firefox || true
+	sleep 3
 	# The window of GTK, title bar included, as the X server has it. The whole screen is taken, then cut: the
 	# window alone comes out black without a compositing manager.
 	if ! timeout 60 xdotool search --sync --onlyvisible --name ' - Eclipse IDE' > /dev/null; then

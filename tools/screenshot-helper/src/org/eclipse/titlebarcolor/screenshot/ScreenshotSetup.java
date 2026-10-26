@@ -15,6 +15,7 @@ import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IStartup;
+import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.IWorkbenchWindow;
@@ -73,6 +74,12 @@ public class ScreenshotSetup implements IStartup {
 		IWorkbenchWindow window = workbench.getWorkbenchWindows()[0];
 		IWorkbenchPage page = window.getActivePage();
 		if (page != null) {
+			// The notification of the packages of Eclipse (Sponsor the Eclipse IDE) opens a view with a web page.
+			for (IViewReference view : page.getViewReferences()) {
+				if (view.getPartName().contains("Sponsor") || view.getTitle().contains("Sponsor")) {
+					page.hideView(view);
+				}
+			}
 			page.closeAllEditors(false);
 			try {
 				IDE.openEditor(page, sample());
