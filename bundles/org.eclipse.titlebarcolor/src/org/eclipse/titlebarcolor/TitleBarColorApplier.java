@@ -1,5 +1,9 @@
 package org.eclipse.titlebarcolor;
 
+import java.util.Collections;
+import java.util.Set;
+import java.util.WeakHashMap;
+
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Display;
@@ -13,6 +17,8 @@ final class TitleBarColorApplier {
 
 	private final IWorkbench workbench;
 	private final TitleBarPainter painter;
+	/** The windows this plug-in painted: the others keep the color they have, whoever gave it. */
+	private final Set<Shell> painted = Collections.newSetFromMap(new WeakHashMap<>());
 
 	TitleBarColorApplier(IWorkbench workbench, TitleBarPainter painter) {
 		this.workbench = workbench;
@@ -43,7 +49,7 @@ final class TitleBarColorApplier {
 		IEclipsePreferences preferences = TitleBarColors.preferences();
 		Display display = workbench.getDisplay();
 		preferences.addPreferenceChangeListener(event -> {
-			if (TitleBarColors.COLOR.equals(event.getKey())) {
+			if (TitleBarColors.COLOR.equals(event.getKey()) && !display.isDisposed()) {
 				display.asyncExec(this::applyToAll);
 			}
 		});
@@ -60,10 +66,12 @@ final class TitleBarColorApplier {
 			return;
 		}
 		RGB color = TitleBarColors.get();
-		if (color == null) {
+		if (color != null) {
+			if (painter.paint(shell, color)) {
+				painted.add(shell);
+			}
+		} else if (painted.remove(shell)) {
 			painter.reset(shell);
-		} else {
-			painter.paint(shell, color);
 		}
 	}
 }

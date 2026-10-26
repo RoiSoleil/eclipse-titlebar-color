@@ -85,6 +85,8 @@ jobs:
             files: build/coverage.xml
             token: ${{ secrets.CODECOV_TOKEN }}
    build:
+      # Nothing is published while a test fails on one of the systems.
+      needs: test
       runs-on: ubuntu-latest
       steps:
       -  name: Checkout

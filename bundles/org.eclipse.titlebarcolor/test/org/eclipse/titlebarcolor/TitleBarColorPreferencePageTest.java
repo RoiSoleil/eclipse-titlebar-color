@@ -34,6 +34,7 @@ class TitleBarColorPreferencePageTest {
 	void close() {
 		shell.dispose();
 		TitleBarColors.set(null);
+		TitleBarColors.useForTests(null);
 	}
 
 	private Button checkbox() {

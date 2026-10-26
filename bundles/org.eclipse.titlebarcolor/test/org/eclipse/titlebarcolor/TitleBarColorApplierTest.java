@@ -45,6 +45,7 @@ class TitleBarColorApplierTest {
 	void close() {
 		shell.dispose();
 		TitleBarColors.set(null);
+		TitleBarColors.useForTests(null);
 	}
 
 	@Test
@@ -55,9 +56,20 @@ class TitleBarColorApplierTest {
 	}
 
 	@Test
-	void givesTheSystemColorBackWhenThereIsNoColor() {
+	void leavesTheWindowAloneWhenThereIsNoColorAndNothingWasPainted() {
 		new TitleBarColorApplier(null, painter).apply(shell);
-		assertEquals(List.of("reset"), calls);
+		assertEquals(List.of(), calls);
+	}
+
+	@Test
+	void givesTheSystemColorBackWhenTheColorIsRemoved() {
+		TitleBarColorApplier applier = new TitleBarColorApplier(null, painter);
+		TitleBarColors.set(new RGB(1, 2, 3));
+		applier.apply(shell);
+		TitleBarColors.set(null);
+		applier.apply(shell);
+		applier.apply(shell);
+		assertEquals(List.of("paint #010203", "reset"), calls);
 	}
 
 	@Test

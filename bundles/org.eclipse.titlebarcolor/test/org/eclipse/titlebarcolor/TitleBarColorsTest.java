@@ -19,6 +19,11 @@ class TitleBarColorsTest {
 		TitleBarColors.set(null);
 	}
 
+	@AfterEach
+	void forget() {
+		TitleBarColors.useForTests(null);
+	}
+
 	@Test
 	void parsesAndFormatsTheColor() {
 		assertEquals(new RGB(0x1F, 0x6F, 0xB5), TitleBarColors.parse("#1F6FB5"));

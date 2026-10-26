@@ -22,8 +22,6 @@ final class WindowsTitleBarPainter implements TitleBarPainter {
 
 	public interface Dwmapi extends Library {
 		int DwmSetWindowAttribute(Pointer window, int attribute, IntByReference value, int size);
-
-		int DwmGetWindowAttribute(Pointer window, int attribute, IntByReference value, int size);
 	}
 
 	private Dwmapi dwmapi;
@@ -54,19 +52,14 @@ final class WindowsTitleBarPainter implements TitleBarPainter {
 		}
 	}
 
-	/** The caption color of the window as the window manager has it, as a COLORREF; null if it cannot say. */
-	Integer captionColor(Shell shell) {
-		Pointer window = window(shell);
-		IntByReference value = new IntByReference();
-		if (window == null || dwmapi().DwmGetWindowAttribute(window, DWMWA_CAPTION_COLOR, value, 4) != 0) {
-			return null;
-		}
-		return value.getValue();
-	}
-
 	private boolean set(Pointer window, int attribute, int colorRef) {
-		// A negative result (E_INVALIDARG...) is a Windows that does not know the attribute.
-		return dwmapi().DwmSetWindowAttribute(window, attribute, new IntByReference(colorRef), 4) == 0;
+		try {
+			// A negative result (E_INVALIDARG...) is a Windows that does not know the attribute.
+			return dwmapi().DwmSetWindowAttribute(window, attribute, new IntByReference(colorRef), 4) == 0;
+		} catch (LinkageError e) {
+			// JNA, or the library of Windows, is not there: the title bar keeps its color.
+			return false;
+		}
 	}
 
 	/** COLORREF is 0x00BBGGRR. */
@@ -77,8 +70,9 @@ final class WindowsTitleBarPainter implements TitleBarPainter {
 	/** The HWND of the shell: the handle field exists in the SWT of Windows only, hence the reflection. */
 	private static Pointer window(Shell shell) {
 		try {
-			return shell.isDisposed() ? null : new Pointer(Control.class.getField("handle").getLong(shell));
-		} catch (ReflectiveOperationException e) {
+			long handle = shell.isDisposed() ? 0 : Control.class.getField("handle").getLong(shell);
+			return handle == 0 ? null : new Pointer(handle);
+		} catch (ReflectiveOperationException | RuntimeException e) {
 			return null;
 		}
 	}
