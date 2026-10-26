@@ -1,0 +1,126 @@
+name: screenshots
+# Screenshots of the plug-in on Windows, Linux and macOS (for the Eclipse Marketplace): a real Eclipse with the
+# plug-in, whose title bar has the color of its workspace. They are uploaded as artifacts and committed to the
+# screenshots folder of this branch.
+on:
+   push:
+      branches:
+      - screenshots
+   workflow_dispatch:
+permissions:
+   contents: write
+concurrency:
+   group: screenshots
+   cancel-in-progress: true
+jobs:
+   screenshot:
+      name: screenshot (${{ matrix.name }})
+      strategy:
+         fail-fast: false
+         matrix:
+            include:
+            -  name: Windows
+               system: windows
+               color: 1F6FB5
+               os: windows-latest
+               package: win32-x86_64.zip
+               install: eclipse
+               home: eclipse
+            -  name: Linux
+               system: linux
+               color: 2E7D32
+               os: ubuntu-latest
+               package: linux-gtk-x86_64.tar.gz
+               install: eclipse
+               home: eclipse
+            -  name: macOS
+               system: macos
+               color: 7B1FA2
+               os: macos-latest
+               package: macosx-cocoa-aarch64.dmg
+               install: Eclipse.app
+               home: Eclipse.app/Contents/Eclipse
+      runs-on: ${{ matrix.os }}
+      defaults:
+         run:
+            shell: bash
+      env:
+         ECLIPSE_URL: https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2026-06/R/eclipse-committers-2026-06-R-${{ matrix.package }}&r=1
+      steps:
+      -  name: Checkout
+         uses: actions/checkout@v5
+      -  name: Set up JDK
+         uses: actions/setup-java@v5
+         with:
+            distribution: temurin
+            java-version: 21
+      # Restored and saved apart: saved right after the download, before the screenshot installs the plug-in and runs
+      # Eclipse, which change the installation.
+      -  name: Restore Eclipse
+         id: eclipse
+         uses: actions/cache/restore@v4.2.4
+         with:
+           path: ~/${{ matrix.install }}
+           key: eclipse-committers-2026-06-R-${{ matrix.package }}
+      -  name: Download Eclipse
+         if: steps.eclipse.outputs.cache-hit != 'true'
+         run: |
+            curl -sfL -o "$RUNNER_TEMP/${{ matrix.package }}" "$ECLIPSE_URL"
+            case "${{ matrix.package }}" in
+            *.tar.gz) tar xzf "$RUNNER_TEMP/${{ matrix.package }}" -C ~ ;;
+            *.zip) 7z x -bd -y -o"$HOME" "$RUNNER_TEMP/${{ matrix.package }}" > /dev/null ;;
+            *.dmg)
+               hdiutil attach -quiet -nobrowse -readonly -mountpoint "$RUNNER_TEMP/dmg" "$RUNNER_TEMP/${{ matrix.package }}"
+               cp -R "$RUNNER_TEMP/dmg/Eclipse.app" ~/
+               hdiutil detach -quiet "$RUNNER_TEMP/dmg"
+               ;;
+            esac
+            test -d ~/"${{ matrix.home }}/plugins"
+      -  name: Save Eclipse
+         if: steps.eclipse.outputs.cache-hit != 'true'
+         uses: actions/cache/save@v4.2.4
+         with:
+           path: ~/${{ matrix.install }}
+           key: eclipse-committers-2026-06-R-${{ matrix.package }}
+      -  name: Install a display
+         if: runner.os == 'Linux'
+         run: |
+            sudo apt-get update
+            sudo apt-get install -y xvfb libgtk-3-0 xdotool imagemagick
+            Xvfb :99 -screen 0 1440x900x24 &
+            echo "DISPLAY=:99" >> "$GITHUB_ENV"
+      -  name: Screenshot
+         timeout-minutes: 15
+         run: ECLIPSE_HOME="$HOME/${{ matrix.home }}" ./tools/screenshot.sh ${{ matrix.system }} ${{ matrix.color }}
+      -  name: Upload
+         if: always()
+         uses: actions/upload-artifact@v4
+         with:
+            name: screenshot-${{ matrix.system }}
+            path: screenshots/${{ matrix.system }}.png
+            if-no-files-found: warn
+   commit:
+      needs: screenshot
+      if: ${{ !cancelled() && github.event_name == 'push' }}
+      runs-on: ubuntu-latest
+      steps:
+      -  name: Checkout
+         uses: actions/checkout@v5
+      -  name: Download
+         uses: actions/download-artifact@v4
+         with:
+            pattern: screenshot-*
+            path: downloaded
+            merge-multiple: true
+      -  name: Commit
+         run: |
+            mkdir -p screenshots
+            cp downloaded/*.png screenshots/ 2>/dev/null || { echo "No screenshot"; exit 0; }
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add screenshots
+            git diff --cached --quiet && exit 0
+            git commit -m "New screenshots"
+            # The branch may have moved during the run.
+            git pull --rebase origin screenshots
+            git push origin HEAD:screenshots
