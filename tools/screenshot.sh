@@ -16,13 +16,21 @@ export SCREENSHOT_SETTLE=${SCREENSHOT_SETTLE:-30}
 # The helper that sets the workbench up for the screenshot (tools/screenshot-helper), in the dropins too.
 HELPER=tools/screenshot-helper
 SEP=:
+PLUGINS="$ECLIPSE_HOME/plugins"
 case "$(uname -s)" in
-MINGW* | MSYS* | CYGWIN*) SEP=';' ;;
+MINGW* | MSYS* | CYGWIN*)
+	SEP=';'
+	# Java does not understand the /c/... paths of Git Bash.
+	PLUGINS=$(cygpath -m "$PLUGINS")
+	;;
 esac
-CP="$ECLIPSE_HOME/plugins/*"
+# Each jar of the installation, as test.sh does: a class path wildcard is not read the same way everywhere.
+CP=$(find "$PLUGINS" -maxdepth 1 -name '*.jar' ! -name '*.source_*' | tr '\n' "$SEP")
 rm -rf build/screenshot-helper && mkdir -p build/screenshot-helper
-javac --release 21 -nowarn -encoding UTF-8 -cp "$(case $SEP in ';') cygpath -m "$CP" ;; *) echo "$CP" ;; esac)" \
-	-d build/screenshot-helper $(find $HELPER/src -name '*.java')
+# In an argument file: the class path is longer than a command line of Windows.
+echo "-cp \"$CP\"" > build/screenshot-helper.args
+find $HELPER/src -name '*.java' >> build/screenshot-helper.args
+javac --release 21 -nowarn -encoding UTF-8 -d build/screenshot-helper @build/screenshot-helper.args
 HELPER_JAR="$ECLIPSE_HOME/dropins/org.eclipse.titlebarcolor.screenshot_1.0.0.jar"
 jar --create --file "$HELPER_JAR" \
 	--manifest $HELPER/META-INF/MANIFEST.MF -C build/screenshot-helper org -C $HELPER plugin.xml
