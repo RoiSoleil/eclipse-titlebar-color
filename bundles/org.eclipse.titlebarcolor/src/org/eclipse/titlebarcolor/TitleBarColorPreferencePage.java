@@ -32,7 +32,10 @@ public class TitleBarColorPreferencePage extends PreferencePage implements IWork
 		Label note = new Label(page, SWT.WRAP);
 		note.setText("The title bar of the windows of this workspace gets its own color, to tell the workspaces apart. "
 				+ "Each workspace keeps its own choice.");
-		note.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false, 2, 1));
+		// A width to wrap at: without it the label asks for the whole text on one line, and is cut.
+		GridData noteData = new GridData(SWT.FILL, SWT.TOP, true, false, 2, 1);
+		noteData.widthHint = 400;
+		note.setLayoutData(noteData);
 		enabled = new Button(page, SWT.CHECK);
 		enabled.setText("Color the title bar");
 		RGB current = TitleBarColors.get();
