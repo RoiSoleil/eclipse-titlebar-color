@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<!-- Only for tools/screenshot.sh: never part of the plug-in. -->
+<plugin>
+   <extension point="org.eclipse.ui.startup">
+      <startup class="org.eclipse.titlebarcolor.screenshot.ScreenshotSetup"/>
+   </extension>
+</plugin>

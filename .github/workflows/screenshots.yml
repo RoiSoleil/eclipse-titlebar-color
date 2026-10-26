@@ -82,12 +82,16 @@ jobs:
          with:
            path: ~/${{ matrix.install }}
            key: eclipse-committers-2026-06-R-${{ matrix.package }}
+      -  name: Enlarge the screen
+         if: runner.os == 'Windows'
+         shell: pwsh
+         run: Set-DisplayResolution -Width 1920 -Height 1080 -Force
       -  name: Install a display
          if: runner.os == 'Linux'
          run: |
             sudo apt-get update
             sudo apt-get install -y xvfb libgtk-3-0 xdotool imagemagick
-            Xvfb :99 -screen 0 1440x900x24 &
+            Xvfb :99 -screen 0 1920x1080x24 &
             echo "DISPLAY=:99" >> "$GITHUB_ENV"
       -  name: Screenshot
          timeout-minutes: 15

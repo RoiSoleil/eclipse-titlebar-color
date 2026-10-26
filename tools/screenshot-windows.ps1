@@ -1,5 +1,6 @@
-# Places the Eclipse window and saves it, title bar included, as a PNG. Called by tools/screenshot.sh.
-param([string]$Out, [int]$Wait = 300, [int]$Settle = 40)
+# Saves the window of the workbench, title bar included, as a PNG. Called by tools/screenshot.sh once the window
+# is ready.
+param([string]$Out)
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System; using System.Text; using System.Runtime.InteropServices;
@@ -38,15 +39,13 @@ function Find-Workbench {
   }, [IntPtr]::Zero) | Out-Null
   return $script:found
 }
-$deadline = (Get-Date).AddSeconds($Wait)
-do { Start-Sleep -Seconds 5; $found = Find-Workbench } while ($found -eq [IntPtr]::Zero -and (Get-Date) -lt $deadline)
-if ($found -eq [IntPtr]::Zero) { Write-Error 'No Eclipse window'; exit 1 }
-Start-Sleep -Seconds $Settle
 $found = Find-Workbench
+if ($found -eq [IntPtr]::Zero) { Write-Error 'No Eclipse window'; exit 1 }
 [void][W]::ShowWindow($found, 9)
-[void][W]::SetWindowPos($found, [IntPtr]::Zero, 20, 20, 1280, 800, 0x0040)
+# In front of every other window: Windows does not let a background process take the focus.
+[void][W]::SetWindowPos($found, [IntPtr](-1), 0, 0, 0, 0, 0x0043)
 [void][W]::SetForegroundWindow($found)
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 3
 # The bounds drawn on the screen, without the invisible resize borders of Windows 10 and 11.
 $r = New-Object RECT
 [void][W]::DwmGetWindowAttribute($found, 9, [ref]$r, 16)
