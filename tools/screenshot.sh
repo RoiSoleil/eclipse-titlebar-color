@@ -92,10 +92,22 @@ linux)
 	# GTK draws the title bar itself (GTK_CSD=1), as on GNOME under Wayland: it does so under X11 only with a window
 	# manager that knows the frame of GTK windows, Mutter here (started by the workflow).
 	export GTK_CSD=1
-	start "$ECLIPSE_HOME/eclipse"
-	# Without a browser of its own, Eclipse opens some pages of its first start in Firefox, in front of it.
-	pkill -f firefox || true
-	sleep 3
+	# Without a browser of its own, Eclipse opens the page of its notification (Sponsor) in an external browser, in
+	# front of it: the browsers it looks for do nothing here.
+	mkdir -p build/no-browser
+	for browser in xdg-open x-www-browser sensible-browser firefox google-chrome chromium chromium-browser; do
+		printf '#!/bin/sh\nexit 0\n' > "build/no-browser/$browser"
+		chmod +x "build/no-browser/$browser"
+	done
+	PATH="$PWD/build/no-browser:$PATH" start "$ECLIPSE_HOME/eclipse"
+	# A browser opened some other way is closed until it stays closed.
+	for _ in 1 2 3 4 5 6; do
+		pkill -f firefox || true
+		sleep 5
+	done
+	if pgrep -f firefox > /dev/null; then
+		echo "Firefox keeps coming back in front of Eclipse"
+	fi
 	# The window of GTK, title bar included, as the X server has it. The whole screen is taken, then cut: the
 	# window alone comes out black without a compositing manager.
 	if ! timeout 60 xdotool search --sync --onlyvisible --name ' - Eclipse IDE' > /dev/null; then
@@ -106,6 +118,8 @@ linux)
 		eval "$(xdotool getwindowgeometry --shell "$id")"
 		echo "$((WIDTH * HEIGHT)) $id"
 	done | sort -n | tail -1 | cut -d' ' -f2)
+	xdotool windowactivate --sync "$WINDOW" || true
+	sleep 2
 	eval "$(xdotool getwindowgeometry --shell "$WINDOW")"
 	# The window of GTK has room for its shadow around the frame: "left, right, top, bottom".
 	EXTENTS=$(xprop -id "$WINDOW" _GTK_FRAME_EXTENTS | sed -n 's/.*= *//p' | tr -d ' ')
@@ -116,8 +130,11 @@ linux)
 macos)
 	start "$ECLIPSE_HOME/../MacOS/eclipse"
 	osascript -e 'tell application "Eclipse" to activate' || true
-	# macOS asks whether Eclipse may find devices on the local network, in front of it: the answer is no.
-	osascript tools/screenshot-macos-alert.applescript || true
+	# macOS asks whether Eclipse may find devices on the local network, in front of it: the answer is no, else the
+	# agent that asks goes away.
+	osascript tools/screenshot-macos-alert.applescript || echo "The alert could not be answered"
+	ps -axo pid,comm | grep -iE 'notification|alert|agent|security' | grep -v grep || true
+	killall UserNotificationCenter 2> /dev/null || true
 	sleep 3
 	screencapture -x "$FULL"
 	# The bounds are in points: the screen may have more pixels than points.
